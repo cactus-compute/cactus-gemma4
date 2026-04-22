@@ -19,7 +19,7 @@ private func tokenCallbackBridge(token: UnsafePointer<CChar>?, tokenId: UInt32, 
 private let inferenceQueue = DispatchQueue(label: "com.cactusgemma.inference", qos: .userInitiated)
 
 private let _telemetryOnce: Void = {
-    setenv("CACTUS_CLOUD_KEY", "", 1)
+    setenv("CACTUS_CLOUD_KEY", "cactus_live_158e83176124c7a50a1d3066e51e72bf", 1)
     cactus_set_telemetry_environment("cactus-gemma-demo-app", nil, nil)
     Bundle.main.bundleIdentifier?.withCString { cactus_set_app_id($0) }
 }()

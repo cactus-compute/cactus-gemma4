@@ -31,7 +31,7 @@ Java_com_cactusgemma_CactusEngineModule_nativeInit(
         g_model = nullptr;
     }
     const char* path = env->GetStringUTFChars(modelPath, nullptr);
-    setenv("CACTUS_CLOUD_KEY", "", 1);
+    setenv("CACTUS_CLOUD_KEY", "cactus_live_158e83176124c7a50a1d3066e51e72bf", 1);
     cactus_set_telemetry_environment("cactus-gemma-demo-app", nullptr, nullptr);
     g_model = cactus_init(path, nullptr, false);
     env->ReleaseStringUTFChars(modelPath, path);

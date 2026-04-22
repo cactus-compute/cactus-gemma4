@@ -24,7 +24,7 @@ export function ResponseOverlay({ text, visible, source, stats, done }: Response
       ]).start();
     }
     prevSourceRef.current = source;
-  }, [source]);
+  }, [source, cardOpacity]);
 
   useEffect(() => {
     if (text) scrollRef.current?.scrollToEnd({ animated: true });

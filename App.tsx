@@ -6,13 +6,18 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { DownloadScreen } from './src/screens/DownloadScreen';
 import { CameraScreen } from './src/screens/CameraScreen';
 import { ChatScreen } from './src/screens/ChatScreen';
+import { LiveCameraScreen } from './src/screens/LiveCameraScreen';
 import { useCactusModel } from './src/hooks/useCactusModel';
 
 export default function App() {
   const model = useCactusModel();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [useLiveCam, setUseLiveCam] = useState(false);
 
-  const screen = !model.isReady ? 'download' : photoUri ? 'chat' : 'camera';
+  const screen = !model.isReady ? 'download'
+    : useLiveCam ? 'live'
+    : photoUri ? 'chat'
+    : 'camera';
 
   return (
     <SafeAreaProvider>
@@ -29,7 +34,10 @@ export default function App() {
             />
           )}
           {screen === 'camera' && (
-            <CameraScreen onPhotoTaken={setPhotoUri} />
+            <CameraScreen onPhotoTaken={setPhotoUri} onLiveCamera={() => setUseLiveCam(true)} />
+          )}
+          {screen === 'live' && (
+            <LiveCameraScreen onClose={() => setUseLiveCam(false)} />
           )}
           {screen === 'chat' && (
             <ChatScreen photoUri={photoUri!} onReset={() => setPhotoUri(null)} />

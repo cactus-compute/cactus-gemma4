@@ -14,8 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "",
-      "appleTeamId": "",
+      "bundleIdentifier": "com.jakub-cac.cactusgemma",
+      "appleTeamId": "943JL46954",
       "entitlements": {
         "com.apple.developer.kernel.increased-memory-limit": true
       },

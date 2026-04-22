@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Image, Pressable, Text, TextInput, StyleSheet, Keyboard } from 'react-native';
+import { View, Pressable, Text, TextInput, StyleSheet, Keyboard } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import * as Haptics from 'expo-haptics';
@@ -7,23 +8,25 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { ActionButton } from '../components/ActionButton';
 import { ProcessingGlow } from '../components/ProcessingGlow';
 import { ResponseOverlay } from '../components/ResponseOverlay';
-import { useConversation } from '../hooks/useConversation';
+import { useLiveCameraConversation } from '../hooks/useLiveCameraConversation';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { colors } from '../utils/colors';
 
-interface ChatScreenProps {
-  photoUri: string;
-  onReset: () => void;
+interface LiveCameraScreenProps {
+  onClose: () => void;
 }
 
-export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
-  const { response, isGenerating, lastResult, sendMessage, reset } = useConversation(photoUri);
+export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
+  const { response, isGenerating, lastResult, sendMessage, stop } = useLiveCameraConversation();
   const { isRecording, startRecording, stopRecording } = useAudioRecorder();
-  const insets = useSafeAreaInsets();
-  const prevDone = useRef(false);
+  const [permission] = useCameraPermissions({ request: true });
+  const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const cameraRef = useRef<CameraView>(null);
   const textInputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
+  const prevDone = useRef(false);
 
   const inferenceSource: 'device' | 'cloud' = lastResult?.cloud_handoff ? 'cloud' : 'device';
   const hasResponse = !!lastResult && !isGenerating;
@@ -44,9 +47,9 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
     }
   }, [showKeyboard]);
 
-  const handleReset = () => {
-    reset();
-    onReset();
+  const captureFrame = async (): Promise<string> => {
+    const photo = await cameraRef.current!.takePictureAsync({ quality: 0.5, skipProcessing: true });
+    return photo.uri;
   };
 
   const handleHoldStart = () => {
@@ -57,8 +60,8 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
   };
 
   const handleHoldEnd = async () => {
-    const pcm = await stopRecording();
-    if (pcm) await sendMessage(pcm);
+    const [pcm, frameUri] = await Promise.all([stopRecording(), captureFrame()]);
+    if (pcm) await sendMessage(pcm, frameUri);
   };
 
   const handleSendText = async () => {
@@ -67,7 +70,7 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
     setTextInput('');
     setShowKeyboard(false);
     Keyboard.dismiss();
-    await sendMessage(null, text);
+    await sendMessage(null, await captureFrame(), text);
   };
 
   const handleCloseKeyboard = () => {
@@ -75,9 +78,19 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
     Keyboard.dismiss();
   };
 
+  if (!permission) return <View style={styles.container} />;
+
+  if (!permission.granted) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.permissionText}>Camera access is required.{'\n'}Please enable it in Settings.</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.fill}>
-      <Image source={{ uri: photoUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+    <View style={styles.container}>
+      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
       <ProcessingGlow visible={isGenerating && !isRecording && !response} />
       <ResponseOverlay
         text={response}
@@ -88,15 +101,21 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
           ? `${lastResult.decode_tps.toFixed(1)} tok/s · ${Math.round(lastResult.time_to_first_token_ms)}ms TTFT`
           : undefined}
       />
+      <Pressable
+        style={({ pressed }) => [styles.flipButton, { top: insets.top + 12 }, pressed && { opacity: 0.5 }]}
+        onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
+      >
+        <FontAwesome6 name="rotate" size={18} color="#fff" />
+      </Pressable>
       {!showKeyboard && (
         <View style={[styles.controls, { paddingBottom: insets.bottom + 28 }]}>
           <View style={styles.row}>
             <View style={styles.side}>
               <Pressable
                 style={({ pressed }) => [styles.circleButton, pressed && { opacity: 0.5 }]}
-                onPress={handleReset}
+                onPress={() => { stop(); onClose(); }}
               >
-                <FontAwesome6 name="xmark" size={18} color="#fff" />
+                <FontAwesome6 name="arrow-left" size={18} color="#fff" />
               </Pressable>
             </View>
             <ActionButton
@@ -131,7 +150,7 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
               style={styles.textInput}
               value={textInput}
               onChangeText={setTextInput}
-              placeholder="Type a message..."
+              placeholder="Ask about what you see..."
               placeholderTextColor={colors.textMuted}
               returnKeyType="send"
               onSubmitEditing={handleSendText}
@@ -145,22 +164,33 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
           </View>
         </KeyboardStickyView>
       )}
-      {showHint && <Text style={[styles.hint, { bottom: insets.bottom }]}>Press and hold to ask a question</Text>}
+      {showHint && (
+        <Text style={[styles.hint, { bottom: insets.bottom }]}>Hold to ask about what you see</Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
+  container: { flex: 1, backgroundColor: '#000' },
+  centered: { alignItems: 'center', justifyContent: 'center' },
+  permissionText: { color: colors.textSecondary, fontSize: 15, textAlign: 'center', lineHeight: 22 },
   controls: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     alignItems: 'center',
+  },
+  flipButton: {
+    position: 'absolute',
+    right: 20,
+    width: 40,
+    aspectRatio: 1,
+    borderRadius: 20,
+    backgroundColor: colors.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',

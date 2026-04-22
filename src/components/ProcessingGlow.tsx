@@ -21,7 +21,7 @@ export function ProcessingGlow({ visible }: { visible: boolean }) {
     );
     pulse.start();
     return () => pulse.stop();
-  }, [visible]);
+  }, [visible, opacity]);
 
   if (!visible) return null;
 

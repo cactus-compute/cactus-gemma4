@@ -56,9 +56,9 @@ export function useAudioRecorder() {
       await recorder.prepareToRecordAsync();
       recorder.record();
       setIsRecording(true);
-    } catch (_) {
+    } catch {
       recordingRef.current = false;
-      try { recorder.stop(); } catch (_e) {}
+      try { recorder.stop(); } catch {}
     }
   }, [recorder]);
 
@@ -73,9 +73,9 @@ export function useAudioRecorder() {
       if (!uri) return null;
       const wavFile = new File(uri);
       const base64 = await wavFile.base64();
-      try { wavFile.delete(); } catch (_) {}
+      try { wavFile.delete(); } catch {}
       return base64;
-    } catch (_) {
+    } catch {
       recordingRef.current = false;
       setIsRecording(false);
       return null;

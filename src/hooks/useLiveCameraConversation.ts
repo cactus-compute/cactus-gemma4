@@ -14,15 +14,16 @@ const OPTIONS = JSON.stringify({
   cloud_timeout_ms: 10000,
 });
 
+const SYSTEM_PROMPT = `You are a helpful visual assistant in a live camera demo showcasing Gemma 4's multimodal capabilities. You are receiving a frame from the device's live camera feed. Answer questions about what you see in the image naturally and concisely. If given a voice or text question, address it directly in relation to the current scene.`;
+
 function uriToPath(uri: string): string {
   return uri.startsWith('file://') ? decodeURIComponent(uri.replace('file://', '')) : uri;
 }
 
-export function useConversation(imagePath: string) {
+export function useLiveCameraConversation() {
   const [response, setResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastResult, setLastResult] = useState<InferenceResult | null>(null);
-  const messagesRef = useRef<ChatMessage[]>([]);
   const listenerRef = useRef<{ remove: () => void } | null>(null);
   const activeRef = useRef(false);
   const generationIdRef = useRef(0);
@@ -39,7 +40,7 @@ export function useConversation(imagePath: string) {
     };
   }, []);
 
-  const sendMessage = useCallback(async (pcmBase64: string | null, text?: string) => {
+  const sendMessage = useCallback(async (pcmBase64: string | null, frameUri: string, text?: string) => {
     if (activeRef.current) return;
     activeRef.current = true;
     const genId = ++generationIdRef.current;
@@ -48,22 +49,21 @@ export function useConversation(imagePath: string) {
     setResponse('');
     setLastResult(null);
 
-    const userMsg: ChatMessage = {
-      role: 'user',
-      content: text ?? '',
-      ...(messagesRef.current.length === 0 ? { images: [uriToPath(imagePath)] } : {}),
-    };
-    messagesRef.current = [...messagesRef.current, userMsg];
+    // Reset context so each query is fresh with the current frame
+    CactusEngine.cactus_reset();
+
+    const payload: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: text ?? '', images: [uriToPath(frameUri)] },
+    ];
 
     listenerRef.current?.remove();
     const listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
       if (generationIdRef.current === genId) {
-        setResponse(prev => prev + e.token);
+        setResponse((prev: string) => prev + e.token);
       }
     });
     listenerRef.current = listener;
-
-    const payload: ChatMessage[] = [...messagesRef.current];
 
     try {
       const json = await CactusEngine.cactus_complete(
@@ -80,17 +80,13 @@ export function useConversation(imagePath: string) {
           if (generationIdRef.current !== genId) return;
           setResponse(result.response);
           setLastResult(result);
-          messagesRef.current = [...messagesRef.current.slice(0, -1), { role: 'assistant', content: result.response }];
         }, 1500);
-        messagesRef.current = [...messagesRef.current, { role: 'assistant', content: '' }];
       } else if (result.response) {
         setResponse(result.response);
         setLastResult(result);
-        messagesRef.current = [...messagesRef.current, { role: 'assistant', content: result.response }];
       }
     } catch (e: any) {
       if (generationIdRef.current !== genId) return;
-      messagesRef.current = messagesRef.current.slice(0, -1);
       setResponse(e?.message ?? 'Something went wrong');
     } finally {
       listener.remove();
@@ -100,21 +96,17 @@ export function useConversation(imagePath: string) {
         setIsGenerating(false);
       }
     }
-  }, [imagePath]);
+  }, []);
 
-  const reset = useCallback(() => {
+  const stop = useCallback(() => {
     generationIdRef.current++;
     listenerRef.current?.remove();
     listenerRef.current = null;
     if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current);
     CactusEngine.cactus_stop();
-    CactusEngine.cactus_reset();
-    messagesRef.current = [];
     activeRef.current = false;
-    setResponse('');
     setIsGenerating(false);
-    setLastResult(null);
   }, []);
 
-  return { response, isGenerating, lastResult, sendMessage, reset };
+  return { response, isGenerating, lastResult, sendMessage, stop };
 }
