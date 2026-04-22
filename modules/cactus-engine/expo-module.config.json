@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["CactusEngineModule"]
+  },
+  "android": {
+    "modules": ["com.cactusgemma.CactusEngineModule"]
+  }
+}

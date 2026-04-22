@@ -1,0 +1,4 @@
+module CactusFFI {
+    header "CactusBridge.h"
+    export *
+}
