@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StreamdownText } from 'react-native-streamdown';
 
 interface ResponseOverlayProps {
   text: string;
@@ -45,7 +46,11 @@ export function ResponseOverlay({ text, visible, source, stats, done, bottomOffs
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.text}>{text}</Text>
+        <StreamdownText
+          markdown={text}
+          markdownStyle={markdownStyle}
+          containerStyle={styles.mdContainer}
+        />
       </ScrollView>
       {done && (
         <View style={styles.footer}>
@@ -60,6 +65,30 @@ export function ResponseOverlay({ text, visible, source, stats, done, bottomOffs
   );
 }
 
+const markdownStyle = {
+  paragraph: { color: '#fff' },
+  h1: { color: '#fff' },
+  h2: { color: '#fff' },
+  h3: { color: '#fff' },
+  h4: { color: '#fff' },
+  h5: { color: '#fff' },
+  h6: { color: '#fff' },
+  list: { color: '#fff', bulletColor: '#fff', markerColor: '#fff' },
+  strong: { color: '#fff' },
+  em: { color: '#fff' },
+  code: { color: '#fff', backgroundColor: 'transparent', borderColor: 'transparent' },
+  codeBlock: { color: '#fff', backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },
+  link: { color: '#fff' },
+  blockquote: { color: '#fff', backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.3)' },
+  table: { color: '#fff', headerTextColor: '#fff', headerBackgroundColor: 'rgba(255,255,255,0.1)', rowEvenBackgroundColor: 'transparent', rowOddBackgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.2)' },
+  math: { color: '#fff', backgroundColor: 'rgba(255,255,255,0.08)' },
+  inlineMath: { color: '#fff' },
+  taskList: { checkedTextColor: '#fff', checkedColor: '#fff', borderColor: 'rgba(255,255,255,0.5)', checkmarkColor: '#000' },
+  strikethrough: { color: '#fff' },
+  underline: { color: '#fff' },
+  thematicBreak: { color: 'rgba(255,255,255,0.3)' },
+};
+
 const styles = StyleSheet.create({
   card: {
     position: 'absolute',
@@ -73,10 +102,8 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
-  text: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 24,
+  mdContainer: {
+    width: '100%',
   },
   footer: {
     flexDirection: 'row',

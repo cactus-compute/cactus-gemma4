@@ -20,6 +20,18 @@ function uriToPath(uri: string): string {
   return uri.startsWith('file://') ? decodeURIComponent(uri.replace('file://', '')) : uri;
 }
 
+// TODO: remove once cactus-compute/cactus stops HTML-encoding token strings.
+// The C library encodes <, >, &, ', " as \uXXXX in token callbacks and in the
+// JSON response value, causing double-encoding that JSON.parse does not fully undo.
+function decodeUnicode(str: string): string {
+  return str
+    .replace(/\\u003c/gi, '<')
+    .replace(/\\u003e/gi, '>')
+    .replace(/\\u0026/gi, '&')
+    .replace(/\\u0027/gi, "'")
+    .replace(/\\u0022/gi, '"');
+}
+
 export function useLiveCameraConversation() {
   const [response, setResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -60,7 +72,7 @@ export function useLiveCameraConversation() {
     listenerRef.current?.remove();
     const listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
       if (generationIdRef.current === genId) {
-        setResponse((prev: string) => prev + e.token);
+        setResponse((prev: string) => prev + decodeUnicode(e.token));
       }
     });
     listenerRef.current = listener;
@@ -74,15 +86,16 @@ export function useLiveCameraConversation() {
       if (generationIdRef.current !== genId) return;
       const result: InferenceResult = JSON.parse(json);
 
-      if (result.cloud_handoff && result.response) {
+      const decoded = result.response ? decodeUnicode(result.response) : '';
+      if (result.cloud_handoff && decoded) {
         setLastResult({ ...result, cloud_handoff: false });
         cloudTimerRef.current = setTimeout(() => {
           if (generationIdRef.current !== genId) return;
-          setResponse(result.response);
+          setResponse(decoded);
           setLastResult(result);
         }, 1500);
-      } else if (result.response) {
-        setResponse(result.response);
+      } else if (decoded) {
+        setResponse(decoded);
         setLastResult(result);
       }
     } catch (e: any) {
