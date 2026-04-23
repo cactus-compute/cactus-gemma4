@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jakub-cac.cactusgemma",
+      "bundleIdentifier": "com.cactuscompute.cactusgemma",
       "appleTeamId": "943JL46954",
       "entitlements": {
         "com.apple.developer.kernel.increased-memory-limit": true
@@ -30,7 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "",
+      "package": "com.jakubcac.cactusgemma",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",

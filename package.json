@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -32,6 +33,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true,
@@ -39,5 +41,9 @@
     "staticFeatureFlags": {
       "BUNDLE_MODE_ENABLED": true
     }
+  },
+  "resolutions": {
+    "metro": "0.83.6",
+    "metro-runtime": "0.83.3"
   }
 }
