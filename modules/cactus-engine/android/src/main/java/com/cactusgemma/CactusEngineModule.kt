@@ -35,10 +35,11 @@ private fun decodeAudioToPcm(data: ByteArray, context: android.content.Context):
             extractor.setDataSource(tmp.absolutePath)
             val trackIndex = (0 until extractor.trackCount).firstOrNull {
                 extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-            } ?: return data
+            } ?: throw IllegalArgumentException("No audio track found in PCM data")
             extractor.selectTrack(trackIndex)
             val format = extractor.getTrackFormat(trackIndex)
-            val mime = format.getString(MediaFormat.KEY_MIME) ?: return data
+            val mime = format.getString(MediaFormat.KEY_MIME)
+                ?: throw IllegalArgumentException("No MIME type for audio track")
             val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 
@@ -174,6 +175,10 @@ class CactusEngineModule : Module() {
         Events("onToken", "onComplete", "onError")
 
         OnDestroy {
+            // Signal any in-flight inference to abort before cancelling the scope.
+            // scope.cancel() is non-blocking; nativeStop() ensures the C layer
+            // exits its inference loop before nativeDestroy() tears down the model.
+            nativeStop()
             scope.cancel()
             nativeDestroy()
         }
@@ -226,11 +231,13 @@ class CactusEngineModule : Module() {
         AsyncFunction("cactus_complete") { messagesJson: String, optionsJson: String?, pcmBase64: String?, promise: Promise ->
             scope.launch {
                 try {
+                    val ctx = appContext.reactContext
+                        ?: throw IllegalStateException("ReactContext unavailable")
                     val pcm = pcmBase64?.let {
                         val raw = Base64.decode(it, Base64.DEFAULT)
                         val stripped = stripWavHeader(raw)
                         if (stripped !== raw) stripped
-                        else decodeAudioToPcm(raw, appContext.reactContext!!)
+                        else decodeAudioToPcm(raw, ctx)
                     }
                     val cb = object : TokenCallback {
                         override fun onToken(token: String, tokenId: Int) {

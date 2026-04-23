@@ -68,16 +68,19 @@ export function useConversation(imagePath: string) {
     messagesRef.current = [...messagesRef.current, userMsg];
 
     listenerRef.current?.remove();
-    const listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
-      if (generationIdRef.current === genId) {
-        setResponse(prev => prev + decodeUnicode(e.token));
-      }
-    });
-    listenerRef.current = listener;
 
     const payload: ChatMessage[] = [...messagesRef.current];
 
+    // Declare outside try so finally can clean up even if addListener throws.
+    let listener: { remove: () => void } | undefined;
     try {
+      listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
+        if (generationIdRef.current === genId) {
+          setResponse(prev => prev + decodeUnicode(e.token));
+        }
+      });
+      listenerRef.current = listener;
+
       const json = await CactusEngine.cactus_complete(
         JSON.stringify(payload),
         OPTIONS,
@@ -100,12 +103,12 @@ export function useConversation(imagePath: string) {
         setLastResult(result);
         messagesRef.current = [...messagesRef.current, { role: 'assistant', content: decoded }];
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (generationIdRef.current !== genId) return;
       messagesRef.current = messagesRef.current.slice(0, -1);
-      setResponse(e?.message ?? 'Something went wrong');
+      setResponse(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
-      listener.remove();
+      listener?.remove();
       if (generationIdRef.current === genId) {
         listenerRef.current = null;
         activeRef.current = false;

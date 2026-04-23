@@ -35,9 +35,9 @@ export function useAudioRecorder() {
   const recorder = useExpoRecorder(RECORDING_OPTIONS);
 
   useEffect(() => {
-    requestRecordingPermissionsAsync().then(({ granted }) => {
-      permissionRef.current = granted;
-    });
+    requestRecordingPermissionsAsync()
+      .then(({ granted }) => { permissionRef.current = granted; })
+      .catch(() => { permissionRef.current = false; });
   }, []);
 
   useEffect(() => {
@@ -78,6 +78,7 @@ export function useAudioRecorder() {
     } catch {
       recordingRef.current = false;
       setIsRecording(false);
+      try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
       return null;
     }
   }, [recorder]);

@@ -70,14 +70,17 @@ export function useLiveCameraConversation() {
     ];
 
     listenerRef.current?.remove();
-    const listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
-      if (generationIdRef.current === genId) {
-        setResponse((prev: string) => prev + decodeUnicode(e.token));
-      }
-    });
-    listenerRef.current = listener;
 
+    // Declare outside try so finally can clean up even if addListener throws.
+    let listener: { remove: () => void } | undefined;
     try {
+      listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
+        if (generationIdRef.current === genId) {
+          setResponse((prev: string) => prev + decodeUnicode(e.token));
+        }
+      });
+      listenerRef.current = listener;
+
       const json = await CactusEngine.cactus_complete(
         JSON.stringify(payload),
         OPTIONS,
@@ -98,11 +101,11 @@ export function useLiveCameraConversation() {
         setResponse(decoded);
         setLastResult(result);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (generationIdRef.current !== genId) return;
-      setResponse(e?.message ?? 'Something went wrong');
+      setResponse(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
-      listener.remove();
+      listener?.remove();
       if (generationIdRef.current === genId) {
         listenerRef.current = null;
         activeRef.current = false;
@@ -119,6 +122,8 @@ export function useLiveCameraConversation() {
     CactusEngine.cactus_stop();
     activeRef.current = false;
     setIsGenerating(false);
+    setResponse('');
+    setLastResult(null);
   }, []);
 
   return { response, isGenerating, lastResult, sendMessage, stop };

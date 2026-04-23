@@ -50,9 +50,12 @@ public class CactusEngineModule: Module {
         Events("onToken", "onComplete", "onError")
 
         OnDestroy {
-            if let m = self.model {
-                cactus_destroy(m)
-                self.model = nil
+            // Queued on inferenceQueue so it runs after any in-flight cactus_complete finishes.
+            inferenceQueue.async {
+                if let m = self.model {
+                    cactus_destroy(m)
+                    self.model = nil
+                }
             }
         }
 
@@ -71,16 +74,22 @@ public class CactusEngineModule: Module {
         }
 
         Function("cactus_destroy") {
-            guard let m = self.model else { return }
-            cactus_destroy(m)
-            self.model = nil
+            inferenceQueue.async {
+                guard let m = self.model else { return }
+                cactus_destroy(m)
+                self.model = nil
+            }
         }
 
         Function("cactus_reset") {
-            guard let m = self.model else { return }
-            cactus_reset(m)
+            inferenceQueue.async {
+                guard let m = self.model else { return }
+                cactus_reset(m)
+            }
         }
 
+        // cactus_stop is intentionally called directly (not queued) — it is a
+        // cross-thread interrupt signal designed to abort the running inference.
         Function("cactus_stop") {
             guard let m = self.model else { return }
             cactus_stop(m)
@@ -101,12 +110,14 @@ public class CactusEngineModule: Module {
         }
 
         AsyncFunction("cactus_complete") { (messagesJson: String, optionsJson: String?, pcmBase64: String?, promise: Promise) in
-            guard let m = self.model else {
-                promise.reject("MODEL_NOT_LOADED", "Call cactus_init() first")
-                return
-            }
-
+            // Guard and inference both run inside the serial inferenceQueue so the
+            // model-validity check is atomic with respect to cactus_destroy/cactus_init.
             inferenceQueue.async {
+                guard let m = self.model else {
+                    promise.reject("MODEL_NOT_LOADED", "Call cactus_init() first")
+                    return
+                }
+
                 let bufSize = 65536
                 let buf = UnsafeMutablePointer<CChar>.allocate(capacity: bufSize)
                 buf.initialize(repeating: 0, count: bufSize)
@@ -135,7 +146,7 @@ public class CactusEngineModule: Module {
                     self.sendEvent("onComplete", ["response": response])
                     promise.resolve(response)
                 } else {
-                    let err = String(cString: cactus_get_last_error())
+                    let err = cactus_get_last_error().map { String(cString: $0) } ?? "Inference failed"
                     self.sendEvent("onError", ["message": err])
                     promise.reject("INFERENCE_FAILED", err)
                 }

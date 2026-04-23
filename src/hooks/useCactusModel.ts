@@ -71,8 +71,8 @@ export function useCactusModel() {
         } else {
           deleteZip();
         }
-      } catch (e: any) {
-        if (!cancelled) setError(e.message ?? 'Setup failed');
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Setup failed');
       } finally {
         if (!cancelled) setIsInitializing(false);
         busyRef.current = false;
@@ -120,8 +120,8 @@ export function useCactusModel() {
       await initModel();
       setIsReady(true);
       setDownloadProgress(1);
-    } catch (e: any) {
-      setError(e.message ?? 'Download failed');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Download failed');
     } finally {
       setIsDownloading(false);
       downloadRef.current = null;

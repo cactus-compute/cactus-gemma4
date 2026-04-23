@@ -30,37 +30,41 @@ export function ResponseOverlay({ text, visible, source, stats, done, bottomOffs
   }, [source, cardOpacity]);
 
   useEffect(() => {
-    if (text) scrollRef.current?.scrollToEnd({ animated: true });
+    if (text) scrollRef.current?.scrollToEnd({ animated: false });
   }, [text]);
 
   if (!visible || !text) return null;
 
   const isCloud = source === 'cloud';
 
-  const maxHeight = screenHeight - (insets.top + 8) - (insets.bottom + bottomOffset) - 8;
+  const maxHeight = Math.max(100, screenHeight - (insets.top + 8) - (insets.bottom + bottomOffset) - 8);
 
+  // Two-view split: outer carries the shadow (iOS clips shadow on overflow:hidden views),
+  // inner carries overflow:hidden for rounded-corner clipping.
   return (
-    <Animated.View style={[styles.card, { top: insets.top + 8, maxHeight, opacity: cardOpacity }]}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <StreamdownText
-          markdown={text}
-          markdownStyle={markdownStyle}
-          containerStyle={styles.mdContainer}
-        />
-      </ScrollView>
-      {done && (
-        <View style={styles.footer}>
-          {stats && <Text style={styles.stats}>{stats}</Text>}
-          <View style={[styles.badge, isCloud ? styles.badgeCloud : styles.badgeDevice]}>
-            <View style={[styles.dot, isCloud ? styles.dotCloud : styles.dotDevice]} />
-            <Text style={styles.badgeLabel}>{isCloud ? 'Gemini' : 'Gemma'}</Text>
+    <Animated.View style={[styles.cardShadow, { top: insets.top + 8, maxHeight, opacity: cardOpacity }]}>
+      <View style={styles.cardClip}>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <StreamdownText
+            markdown={text}
+            markdownStyle={markdownStyle}
+            containerStyle={styles.mdContainer}
+          />
+        </ScrollView>
+        {done && (
+          <View style={styles.footer}>
+            {stats && <Text style={styles.stats}>{stats}</Text>}
+            <View style={[styles.badge, isCloud ? styles.badgeCloud : styles.badgeDevice]}>
+              <View style={[styles.dot, isCloud ? styles.dotCloud : styles.dotDevice]} />
+              <Text style={styles.badgeLabel}>{isCloud ? 'Gemini' : 'Gemma'}</Text>
+            </View>
           </View>
-        </View>
-      )}
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -76,7 +80,7 @@ const markdownStyle = {
   list: { color: '#fff', bulletColor: '#fff', markerColor: '#fff' },
   strong: { color: '#fff' },
   em: { color: '#fff' },
-  code: { color: '#fff', backgroundColor: 'transparent', borderColor: 'transparent' },
+  code: { color: '#fff', fontSize: 14, backgroundColor: 'transparent', borderColor: 'transparent' },
   codeBlock: { color: '#fff', backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },
   link: { color: '#fff' },
   blockquote: { color: '#fff', backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.3)' },
@@ -90,13 +94,23 @@ const markdownStyle = {
 };
 
 const styles = StyleSheet.create({
-  card: {
+  // Shadow on outer view — overflow:hidden would clip it on iOS.
+  cardShadow: {
     position: 'absolute',
     alignSelf: 'center',
     width: '90%',
-    backgroundColor: 'rgba(30,30,30,0.85)',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  // Content clipped to rounded corners on inner view.
+  cardClip: {
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: 'rgba(30,30,30,0.85)',
   },
   scrollContent: {
     padding: 16,
