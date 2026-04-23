@@ -84,6 +84,7 @@ export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
         visible={!!response}
         source={inferenceSource}
         done={hasResponse}
+        bottomOffset={120}
         stats={hasResponse && lastResult.decode_tps > 0
           ? `${lastResult.decode_tps.toFixed(1)} tok/s · ${Math.round(lastResult.time_to_first_token_ms)}ms TTFT`
           : undefined}

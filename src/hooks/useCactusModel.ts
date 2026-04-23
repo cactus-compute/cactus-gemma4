@@ -25,8 +25,8 @@ function deleteZip() {
   if (f.exists) f.delete();
 }
 
-function initModel() {
-  const ok = CactusEngine.cactus_init(getModelDir().uri);
+async function initModel() {
+  const ok = await CactusEngine.cactus_init(getModelDir().uri);
   if (!ok) throw new Error('Failed to initialize model');
 }
 
@@ -56,12 +56,17 @@ export function useCactusModel() {
       try {
         if (isExtracted()) {
           if (cancelled) return;
-          initModel();
+          await initModel();
           if (!cancelled) setIsReady(true);
         } else if (hasValidZip()) {
-          await extractZip();
+          try {
+            await extractZip();
+          } catch (e) {
+            deleteZip();
+            throw e;
+          }
           if (cancelled) return;
-          initModel();
+          await initModel();
           if (!cancelled) setIsReady(true);
         } else {
           deleteZip();
@@ -105,9 +110,14 @@ export function useCactusModel() {
           if (!result) throw new Error('Download failed');
         }
         setDownloadProgress(0.95);
-        await extractZip();
+        try {
+          await extractZip();
+        } catch (e) {
+          deleteZip();
+          throw e;
+        }
       }
-      initModel();
+      await initModel();
       setIsReady(true);
       setDownloadProgress(1);
     } catch (e: any) {

@@ -2,7 +2,7 @@ import { requireNativeModule } from 'expo-modules-core';
 import type { EventSubscription } from 'expo-modules-core';
 
 interface CactusEngine {
-  cactus_init(modelPath: string): boolean;
+  cactus_init(modelPath: string): Promise<boolean>;
   cactus_destroy(): void;
   cactus_reset(): void;
   cactus_stop(): void;

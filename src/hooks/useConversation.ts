@@ -80,9 +80,8 @@ export function useConversation(imagePath: string) {
           if (generationIdRef.current !== genId) return;
           setResponse(result.response);
           setLastResult(result);
-          messagesRef.current = [...messagesRef.current.slice(0, -1), { role: 'assistant', content: result.response }];
+          messagesRef.current = [...messagesRef.current, { role: 'assistant', content: result.response }];
         }, 1500);
-        messagesRef.current = [...messagesRef.current, { role: 'assistant', content: '' }];
       } else if (result.response) {
         setResponse(result.response);
         setLastResult(result);

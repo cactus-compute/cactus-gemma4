@@ -56,13 +56,18 @@ public class CactusEngineModule: Module {
             }
         }
 
-        Function("cactus_init") { (modelPath: String) -> Bool in
+        AsyncFunction("cactus_init") { (modelPath: String, promise: Promise) in
             _ = _telemetryOnce
-            if let old = self.model { cactus_destroy(old); self.model = nil }
-            let path = pathFromUri(modelPath)
-            guard let handle = cactus_init(path, nil, false) else { return false }
-            self.model = handle
-            return true
+            inferenceQueue.async {
+                if let old = self.model { cactus_destroy(old); self.model = nil }
+                let path = pathFromUri(modelPath)
+                guard let handle = cactus_init(path, nil, false) else {
+                    promise.resolve(false)
+                    return
+                }
+                self.model = handle
+                promise.resolve(true)
+            }
         }
 
         Function("cactus_destroy") {

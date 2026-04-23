@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ResponseOverlayProps {
@@ -8,11 +8,13 @@ interface ResponseOverlayProps {
   source?: 'device' | 'cloud';
   stats?: string;
   done?: boolean;
+  bottomOffset?: number;
 }
 
-export function ResponseOverlay({ text, visible, source, stats, done }: ResponseOverlayProps) {
+export function ResponseOverlay({ text, visible, source, stats, done, bottomOffset = 0 }: ResponseOverlayProps) {
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const prevSourceRef = useRef(source);
 
@@ -34,8 +36,10 @@ export function ResponseOverlay({ text, visible, source, stats, done }: Response
 
   const isCloud = source === 'cloud';
 
+  const maxHeight = screenHeight - (insets.top + 8) - (insets.bottom + bottomOffset) - 8;
+
   return (
-    <Animated.View style={[styles.card, { top: insets.top + 8, opacity: cardOpacity }]}>
+    <Animated.View style={[styles.card, { top: insets.top + 8, maxHeight, opacity: cardOpacity }]}>
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -61,7 +65,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignSelf: 'center',
     width: '90%',
-    maxHeight: '75%',
     backgroundColor: 'rgba(30,30,30,0.85)',
     borderRadius: 16,
     overflow: 'hidden',

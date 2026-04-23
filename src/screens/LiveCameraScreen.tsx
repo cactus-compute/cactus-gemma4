@@ -20,7 +20,6 @@ export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
   const { response, isGenerating, lastResult, sendMessage, stop } = useLiveCameraConversation();
   const { isRecording, startRecording, stopRecording } = useAudioRecorder();
   const [permission] = useCameraPermissions({ request: true });
-  const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [textInput, setTextInput] = useState('');
   const cameraRef = useRef<CameraView>(null);
@@ -47,9 +46,9 @@ export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
     }
   }, [showKeyboard]);
 
-  const captureFrame = async (): Promise<string> => {
-    const photo = await cameraRef.current!.takePictureAsync({ quality: 0.5, skipProcessing: true });
-    return photo.uri;
+  const captureFrame = async (): Promise<string | null> => {
+    const photo = await cameraRef.current?.takePictureAsync({ quality: 0.5, skipProcessing: true });
+    return photo?.uri ?? null;
   };
 
   const handleHoldStart = () => {
@@ -61,7 +60,7 @@ export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
 
   const handleHoldEnd = async () => {
     const [pcm, frameUri] = await Promise.all([stopRecording(), captureFrame()]);
-    if (pcm) await sendMessage(pcm, frameUri);
+    if (pcm && frameUri) await sendMessage(pcm, frameUri);
   };
 
   const handleSendText = async () => {
@@ -70,7 +69,8 @@ export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
     setTextInput('');
     setShowKeyboard(false);
     Keyboard.dismiss();
-    await sendMessage(null, await captureFrame(), text);
+    const frameUri = await captureFrame();
+    if (frameUri) await sendMessage(null, frameUri, text);
   };
 
   const handleCloseKeyboard = () => {
@@ -90,23 +90,18 @@ export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
+      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
       <ProcessingGlow visible={isGenerating && !isRecording && !response} />
       <ResponseOverlay
         text={response}
         visible={!!response}
         source={inferenceSource}
         done={hasResponse}
+        bottomOffset={120}
         stats={hasResponse && lastResult.decode_tps > 0
           ? `${lastResult.decode_tps.toFixed(1)} tok/s · ${Math.round(lastResult.time_to_first_token_ms)}ms TTFT`
           : undefined}
       />
-      <Pressable
-        style={({ pressed }) => [styles.flipButton, { top: insets.top + 12 }, pressed && { opacity: 0.5 }]}
-        onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
-      >
-        <FontAwesome6 name="rotate" size={18} color="#fff" />
-      </Pressable>
       {!showKeyboard && (
         <View style={[styles.controls, { paddingBottom: insets.bottom + 28 }]}>
           <View style={styles.row}>
@@ -181,16 +176,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
-  },
-  flipButton: {
-    position: 'absolute',
-    right: 20,
-    width: 40,
-    aspectRatio: 1,
-    borderRadius: 20,
-    backgroundColor: colors.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',

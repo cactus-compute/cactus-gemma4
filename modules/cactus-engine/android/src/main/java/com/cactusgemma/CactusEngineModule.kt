@@ -178,8 +178,10 @@ class CactusEngineModule : Module() {
             nativeDestroy()
         }
 
-        Function("cactus_init") { modelPath: String ->
-            nativeInit(pathFromUri(modelPath))
+        AsyncFunction("cactus_init") { modelPath: String, promise: Promise ->
+            scope.launch {
+                promise.resolve(nativeInit(pathFromUri(modelPath)))
+            }
         }
 
         Function("cactus_destroy") { nativeDestroy() }
