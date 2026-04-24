@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ActionButtonProps {
@@ -72,14 +72,15 @@ export function ActionButton({
             !isCamera && isRecording && styles.voiceRecording,
           ]}
         >
-          {!isCamera && (
+          {isProcessing && <ActivityIndicator size="small" color="#fff" />}
+          {!isProcessing && !isCamera && (
             <Ionicons
               name={isRecording ? 'mic' : 'mic-outline'}
               size={30}
               color="#fff"
             />
           )}
-          {isCamera && <Ionicons name="camera" size={30} color="#000" />}
+          {!isProcessing && isCamera && <Ionicons name="camera" size={30} color="#000" />}
         </View>
       </Pressable>
     </View>

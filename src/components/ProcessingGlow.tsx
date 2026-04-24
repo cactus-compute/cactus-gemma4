@@ -25,7 +25,7 @@ export function ProcessingGlow({ visible }: { visible: boolean }) {
 
   if (!visible) return null;
 
-  const white = 'rgba(255,255,255,0.35)';
+  const white = 'rgba(255,255,255,0.75)';
   const clear = 'rgba(255,255,255,0)';
 
   return (
