@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const MODEL_SIZE_GB = Platform.OS === 'ios' ? '4.78' : '4.14';
 
 interface DownloadScreenProps {
   isDownloading: boolean;
@@ -54,7 +56,7 @@ export function DownloadScreen({
               >
                 <Text style={styles.buttonLabel}>Download Model</Text>
               </Pressable>
-              <Text style={styles.size}>4 GB</Text>
+              <Text style={styles.size}>{MODEL_SIZE_GB} GB</Text>
             </>
           )}
         </View>

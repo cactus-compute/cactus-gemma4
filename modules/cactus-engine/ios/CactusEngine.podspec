@@ -10,22 +10,23 @@ Pod::Spec.new do |s|
   s.swift_version  = '5.9'
 
   s.source         = { git: 'https://github.com/cactuscompute/cactus.git', tag: s.version.to_s }
-  s.source_files   = '*.swift', '*.h', 'include/*.h'
+  s.source_files   = '*.swift'
+  s.preserve_paths = 'cactus_engine.h', 'module.modulemap', 'libs/**/*'
 
   ios_dir = __dir__
 
   s.pod_target_xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
     'SWIFT_INCLUDE_PATHS' => "\"#{ios_dir}\"",
-    'HEADER_SEARCH_PATHS' => "\"#{ios_dir}\" \"#{File.join(ios_dir, 'include')}\"",
+    'HEADER_SEARCH_PATHS' => "\"#{ios_dir}\"",
     'OTHER_LDFLAGS' => '-lc++ -ObjC',
   }
 
   s.user_target_xcconfig = {
     'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => "$(inherited) \"#{File.join(ios_dir, 'libs', 'device')}\"",
     'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => "$(inherited) \"#{File.join(ios_dir, 'libs', 'simulator')}\"",
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => '$(inherited) -lcactus -lcurl',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '$(inherited) -lcactus -lcurl',
+    'OTHER_LDFLAGS[sdk=iphoneos*]' => '$(inherited) -lcactus_engine -lcurl',
+    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => '$(inherited) -lcactus_engine -lcurl',
   }
 
   # Ensure the pod's own product directory is in the linker search path

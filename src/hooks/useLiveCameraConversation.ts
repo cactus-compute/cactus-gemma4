@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import type { EventSubscription } from 'expo-modules-core';
 import { CactusEngineModule as CactusEngine } from '../../modules/cactus-engine';
 import type { ChatMessage, InferenceResult } from '../utils/types';
 
 const OPTIONS = JSON.stringify({
   temperature: 0.7,
   top_p: 0.95,
-  top_k: 40,
+  top_k: 64,
   max_tokens: 1024,
-  stop_sequences: ['<|im_end|>', '<end_of_turn>'],
-  confidence_threshold: 0.9,
+  confidence_threshold: 0.92,
   auto_handoff: true,
   handoff_with_images: true,
   cloud_timeout_ms: 10000,
@@ -16,115 +16,70 @@ const OPTIONS = JSON.stringify({
 
 const SYSTEM_PROMPT = `You are a helpful visual assistant in a live camera demo showcasing Gemma 4's multimodal capabilities. You are receiving a frame from the device's live camera feed. Answer questions about what you see in the image naturally and concisely. If given a voice or text question, address it directly in relation to the current scene.`;
 
-function uriToPath(uri: string): string {
-  return uri.startsWith('file://') ? decodeURIComponent(uri.replace('file://', '')) : uri;
-}
+const uriToPath = (uri: string) =>
+  uri.startsWith('file://') ? decodeURIComponent(uri.replace('file://', '')) : uri;
 
-// TODO: remove once cactus-compute/cactus stops HTML-encoding token strings.
-// The C library encodes <, >, &, ', " as \uXXXX in token callbacks and in the
-// JSON response value, causing double-encoding that JSON.parse does not fully undo.
-function decodeUnicode(str: string): string {
-  return str
-    .replace(/\\u003c/gi, '<')
-    .replace(/\\u003e/gi, '>')
-    .replace(/\\u0026/gi, '&')
-    .replace(/\\u0027/gi, "'")
-    .replace(/\\u0022/gi, '"');
-}
-
-export function useLiveCameraConversation() {
+export function useLiveCameraConversation(handle: string) {
   const [response, setResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastResult, setLastResult] = useState<InferenceResult | null>(null);
-  const listenerRef = useRef<{ remove: () => void } | null>(null);
   const activeRef = useRef(false);
-  const generationIdRef = useRef(0);
-  const cloudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const subRef = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      generationIdRef.current++;
-      listenerRef.current?.remove();
-      listenerRef.current = null;
-      if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current);
-      CactusEngine.cactus_stop();
+      subRef.current?.remove();
+      subRef.current = null;
+      CactusEngine.stop(handle).catch(() => {});
     };
-  }, []);
+  }, [handle]);
 
   const sendMessage = useCallback(async (pcmBase64: string | null, frameUri: string, text?: string) => {
     if (activeRef.current) return;
     activeRef.current = true;
-    const genId = ++generationIdRef.current;
-    if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current);
     setIsGenerating(true);
     setResponse('');
     setLastResult(null);
 
-    // Reset context so each query is fresh with the current frame
-    CactusEngine.cactus_reset();
+    await CactusEngine.reset(handle).catch(() => {});
 
-    const payload: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: text ?? '', images: [uriToPath(frameUri)] },
-    ];
+    subRef.current?.remove();
+    subRef.current = CactusEngine.addListener('onToken', (e) => {
+      setResponse((prev) => prev + e.token);
+    });
 
-    listenerRef.current?.remove();
-
-    // Declare outside try so finally can clean up even if addListener throws.
-    let listener: { remove: () => void } | undefined;
     try {
-      listener = CactusEngine.addListener('onToken', (e: { token: string }) => {
-        if (generationIdRef.current === genId) {
-          setResponse((prev: string) => prev + decodeUnicode(e.token));
-        }
-      });
-      listenerRef.current = listener;
-
-      const json = await CactusEngine.cactus_complete(
-        JSON.stringify(payload),
-        OPTIONS,
-        pcmBase64
+      const payload: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: text ?? (pcmBase64 ? '' : 'Describe what you see.'), images: [uriToPath(frameUri)] },
+      ];
+      const json = await CactusEngine.complete(
+        handle, JSON.stringify(payload), OPTIONS, null, pcmBase64, true,
       );
-      if (generationIdRef.current !== genId) return;
       const result: InferenceResult = JSON.parse(json);
-
-      const decoded = result.response ? decodeUnicode(result.response) : '';
-      if (result.cloud_handoff && decoded) {
-        setLastResult({ ...result, cloud_handoff: false });
-        cloudTimerRef.current = setTimeout(() => {
-          if (generationIdRef.current !== genId) return;
-          setResponse(decoded);
-          setLastResult(result);
-        }, 1500);
-      } else if (decoded) {
-        setResponse(decoded);
+      if (result.response) {
+        setResponse(result.response);
         setLastResult(result);
       }
-    } catch (e: unknown) {
-      if (generationIdRef.current !== genId) return;
+    } catch (e) {
       setResponse(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
-      listener?.remove();
-      if (generationIdRef.current === genId) {
-        listenerRef.current = null;
-        activeRef.current = false;
-        setIsGenerating(false);
-      }
+      subRef.current?.remove();
+      subRef.current = null;
+      activeRef.current = false;
+      setIsGenerating(false);
     }
-  }, []);
+  }, [handle]);
 
   const stop = useCallback(() => {
-    generationIdRef.current++;
-    listenerRef.current?.remove();
-    listenerRef.current = null;
-    if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current);
-    CactusEngine.cactus_stop();
+    subRef.current?.remove();
+    subRef.current = null;
+    CactusEngine.stop(handle).catch(() => {});
     activeRef.current = false;
-    setIsGenerating(false);
     setResponse('');
+    setIsGenerating(false);
     setLastResult(null);
-  }, []);
+  }, [handle]);
 
   return { response, isGenerating, lastResult, sendMessage, stop };
 }

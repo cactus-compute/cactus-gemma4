@@ -1,14 +1,24 @@
 import { requireNativeModule } from 'expo-modules-core';
 import type { EventSubscription } from 'expo-modules-core';
 
+export type TokenEvent = { token: string; tokenId: number };
+
 interface CactusEngine {
-  cactus_init(modelPath: string): Promise<boolean>;
-  cactus_destroy(): void;
-  cactus_reset(): void;
-  cactus_stop(): void;
-  unzip(zipPath: string, destinationPath: string): Promise<boolean>;
-  cactus_complete(messagesJson: string, optionsJson: string | null, pcmBase64: string | null): Promise<string>;
-  addListener(eventName: string, listener: (...args: any[]) => void): EventSubscription;
+  init(modelPath: string, corpusDir: string | null, cacheIndex: boolean): Promise<string>;
+  destroy(handle: string): Promise<void>;
+  reset(handle: string): Promise<void>;
+  stop(handle: string): Promise<void>;
+  complete(
+    handle: string,
+    messagesJson: string,
+    optionsJson: string | null,
+    toolsJson: string | null,
+    pcmDataBase64: string | null,
+    streamTokens: boolean,
+  ): Promise<string>;
+  unzip(zipPath: string, destPath: string): Promise<void>;
+  setCloudApiKey(key: string): Promise<void>;
+  addListener(eventName: 'onToken', listener: (event: TokenEvent) => void): EventSubscription;
 }
 
 export default requireNativeModule<CactusEngine>('CactusEngine');

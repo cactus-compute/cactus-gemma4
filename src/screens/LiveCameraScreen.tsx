@@ -13,11 +13,12 @@ import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { colors } from '../utils/colors';
 
 interface LiveCameraScreenProps {
+  handle: string;
   onClose: () => void;
 }
 
-export function LiveCameraScreen({ onClose }: LiveCameraScreenProps) {
-  const { response, isGenerating, lastResult, sendMessage, stop } = useLiveCameraConversation();
+export function LiveCameraScreen({ handle, onClose }: LiveCameraScreenProps) {
+  const { response, isGenerating, lastResult, sendMessage, stop } = useLiveCameraConversation(handle);
   const { isRecording, startRecording, stopRecording } = useAudioRecorder();
   const [permission] = useCameraPermissions({ request: true });
   const [showKeyboard, setShowKeyboard] = useState(false);

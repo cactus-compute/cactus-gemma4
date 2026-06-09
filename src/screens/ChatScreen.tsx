@@ -12,12 +12,13 @@ import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { colors } from '../utils/colors';
 
 interface ChatScreenProps {
+  handle: string;
   photoUri: string;
   onReset: () => void;
 }
 
-export function ChatScreen({ photoUri, onReset }: ChatScreenProps) {
-  const { response, isGenerating, lastResult, sendMessage, reset } = useConversation(photoUri);
+export function ChatScreen({ handle, photoUri, onReset }: ChatScreenProps) {
+  const { response, isGenerating, lastResult, sendMessage, reset } = useConversation(handle, photoUri);
   const { isRecording, startRecording, stopRecording } = useAudioRecorder();
   const insets = useSafeAreaInsets();
   const prevDone = useRef(false);

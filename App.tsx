@@ -37,10 +37,10 @@ export default function App() {
             <CameraScreen onPhotoTaken={setPhotoUri} onLiveCamera={() => setUseLiveCam(true)} />
           )}
           {screen === 'live' && (
-            <LiveCameraScreen onClose={() => setUseLiveCam(false)} />
+            <LiveCameraScreen handle={model.handle!} onClose={() => setUseLiveCam(false)} />
           )}
           {screen === 'chat' && (
-            <ChatScreen photoUri={photoUri!} onReset={() => setPhotoUri(null)} />
+            <ChatScreen handle={model.handle!} photoUri={photoUri!} onReset={() => setPhotoUri(null)} />
           )}
         </View>
       </KeyboardProvider>
